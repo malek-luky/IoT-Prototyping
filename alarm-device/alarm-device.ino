@@ -1,24 +1,116 @@
+#include <rn2xx3.h>
+#include <SoftwareSerial.h>
+
+SoftwareSerial mySerial(10, 11);  // RX, TX
+rn2xx3 myLora(mySerial);          //instance of the rn2xx3 library,
+
+// Button + Buzzer
 const int buttonPin = 13;
 const int buzzerPin = A1;
 int buttonState = 0;
-bool alarmEnabled = true; 
+bool alarmEnabled = true;
 
+// Init Time
+unsigned long currentTime;
+unsigned long previousTime = 0;
+unsigned long elapsedTime = 0;
+
+/////////////////////////////////////////////////////////////////
+/// SETUP
+/////////////////////////////////////////////////////////////////
 void setup() {
+  Serial.begin(9600);    //serial port to computer
+  mySerial.begin(9600);  //serial port to radio
+  Serial.println("Startup");
   pinMode(buttonPin, INPUT_PULLUP);
   pinMode(buzzerPin, OUTPUT);
+  Serial.println("HERE");
+  initialize_radio();
+  delay(2000);
+}
+
+/////////////////////////////////////////////////////////////////
+/// RADIO INIT
+/////////////////////////////////////////////////////////////////
+void initialize_radio() {
+  pinMode(12, OUTPUT);
+  digitalWrite(12, LOW);
+  delay(500);
+  digitalWrite(12, HIGH);
+  delay(100);  //wait for the RN2xx3's startup message
+  mySerial.flush();
+  myLora.autobaud();  //Autobaud the rn2483 module to 9600. The default would otherwise be 57600.
+
+  //check communication with radio
+  String hweui = myLora.hweui();
+  while (hweui.length() != 16) {
+    Serial.println("Communication with RN2xx3 unsuccessful. Power cycle the board.");
+    Serial.println(hweui);
+    delay(10000);
+    hweui = myLora.hweui();
+  }
+
+  //print out the HWEUI so that we can register it via Heliumctl
+  Serial.println("When using OTAA, register this DevEUI: ");
+  Serial.println(myLora.hweui());
+  Serial.println("RN2xx3 firmware version:");
+  Serial.println(myLora.sysver());
+
+  //configure your keys and join the network
+  Serial.println("Trying to join Helium");
+  bool join_result = false;
+  const char *appEui = "6081F9D09104D7DA";                  // CHANGE HERE
+  const char *appKey = "A30E1B3EABF7FCD62749DA00A703AD4A";  // CHANGE HERE
+  join_result = myLora.initOTAA(appEui, appKey);
+
+  while (!join_result) {
+    Serial.println("Unable to join. Are your keys correct, and do you have Helium coverage?");
+    delay(60000);  //delay a minute before retry
+    join_result = myLora.init();
+  }
+  Serial.println("Successfully joined Helium");
 }
 
 void loop() {
-  buttonState = digitalRead(buttonPin); // Read button state
+  currentTime = millis();                    // Read current time
+  elapsedTime = currentTime - previousTime;  // Calculate elapsed time
 
-  if (buttonState == LOW) { // button pressed
-    noTone(buzzerPin); // Stop the buzzer
-    alarmEnabled = false; 
+  /////////////////////////////////////////////////////////////////
+  /// DOWNLINK
+  /////////////////////////////////////////////////////////////////
+  if (elapsedTime >= 10000) {  // If 10 second has passed, do the downlink
+    String txData = "1a065b0a5bbb";  // Bytes to be sent (HEX format)
+    //uint8_t txBuffer[] = {26, 6, 91, 10, 91, 187}; / Bytes to be sent (Decimal format)
+    Serial.println("Transmitting..");
+    Serial.print("Bytes to be sent: ");
+    Serial.println(txData);
+    String rnCommand = "mac tx uncnf 1 ";  // Creating tx command for RN2483 module. Unconfirmed tx on port 1
+    rnCommand.concat(txData);              // Using concat function to append tx data to string
+    Serial.print("RN2483 command: ");
+    Serial.println(rnCommand);
+    mySerial.println(rnCommand);  // Sending command to RN2483 over serial connection
+    Serial.print("Received from RN2483: ");
+    while (mySerial.available() > 0)  // Checking if there is any serial data coming in from RN2483
+    {
+      int incomingByte = mySerial.read();  // Read the incoming bytes from RN2483 module, one by one:
+      Serial.write(incomingByte);          // Writes out the byte as a readable ASCII character, one by one
+    }
+    previousTime = currentTime; // Update time
+  }
+
+  /////////////////////////////////////////////////////////////////
+  /// BUZZER
+  /////////////////////////////////////////////////////////////////
+  buttonState = digitalRead(buttonPin);  // Read button state
+
+  if (buttonState == LOW) {  // button pressed
+    noTone(buzzerPin);       // Stop the buzzer
+    alarmEnabled = false;
   }
 
   if (alarmEnabled) {
-    tone(buzzerPin, 1000); // Play a default tone
+    tone(buzzerPin, 1000);  // Play a default tone
   }
 
-  delay(100); // Add a short delay for stability
+  delay(100);  // Add a short delay for stability
 }
