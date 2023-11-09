@@ -8,7 +8,8 @@ rn2xx3 myLora(mySerial);          //instance of the rn2xx3 library,
 const int buttonPin = 13;
 const int buzzerPin = A1;
 int buttonState = 0;
-bool alarmEnabled = true;
+bool alarmEnabled = false;
+int incomingByte;
 
 // Init Time
 unsigned long currentTime;
@@ -24,7 +25,6 @@ void setup() {
   Serial.println("Startup");
   pinMode(buttonPin, INPUT_PULLUP);
   pinMode(buzzerPin, OUTPUT);
-  Serial.println("HERE");
   initialize_radio();
   delay(2000);
 }
@@ -65,7 +65,7 @@ void initialize_radio() {
 
   while (!join_result) {
     Serial.println("Unable to join. Are your keys correct, and do you have Helium coverage?");
-    delay(60000);  //delay a minute before retry
+    delay(10000);  //delay a minute before retry
     join_result = myLora.init();
   }
   Serial.println("Successfully joined Helium");
@@ -78,24 +78,15 @@ void loop() {
   /////////////////////////////////////////////////////////////////
   /// DOWNLINK
   /////////////////////////////////////////////////////////////////
-  if (elapsedTime >= 10000) {  // If 10 second has passed, do the downlink
-    String txData = "1a065b0a5bbb";  // Bytes to be sent (HEX format)
-    //uint8_t txBuffer[] = {26, 6, 91, 10, 91, 187}; / Bytes to be sent (Decimal format)
-    Serial.println("Transmitting..");
-    Serial.print("Bytes to be sent: ");
-    Serial.println(txData);
+  if (elapsedTime >= 10000) {              // If 10 second has passed, do the downlink
     String rnCommand = "mac tx uncnf 1 ";  // Creating tx command for RN2483 module. Unconfirmed tx on port 1
-    rnCommand.concat(txData);              // Using concat function to append tx data to string
-    Serial.print("RN2483 command: ");
-    Serial.println(rnCommand);
-    mySerial.println(rnCommand);  // Sending command to RN2483 over serial connection
-    Serial.print("Received from RN2483: ");
-    while (mySerial.available() > 0)  // Checking if there is any serial data coming in from RN2483
+    mySerial.println(rnCommand);           // Sending command to RN2483 over serial connection
+    while (mySerial.available() > 0)       // Checking if there is any serial data coming in from RN2483
     {
       int incomingByte = mySerial.read();  // Read the incoming bytes from RN2483 module, one by one:
       Serial.write(incomingByte);          // Writes out the byte as a readable ASCII character, one by one
     }
-    previousTime = currentTime; // Update time
+    previousTime = currentTime;  // Update time
   }
 
   /////////////////////////////////////////////////////////////////
@@ -103,13 +94,27 @@ void loop() {
   /////////////////////////////////////////////////////////////////
   buttonState = digitalRead(buttonPin);  // Read button state
 
-  if (buttonState == LOW) {  // button pressed
-    noTone(buzzerPin);       // Stop the buzzer
-    alarmEnabled = false;
+
+  // RECEIVER LOGIC
+  if (incomingByte == 31) {
+    if (alarmEnabled == false) {
+      alarmEnabled == true;
+      tone(buzzerPin, 1000);  // Play a default tone
+    }
   }
 
-  if (alarmEnabled) {
-    tone(buzzerPin, 1000);  // Play a default tone
+  else if (incomingByte == 30) {
+    alarmEnabled = false;
+    noTone(buzzerPin);  // Stop the buzzer
+  }
+
+  else {
+    Serial.println("Unknown Message Received");
+  }
+
+  // BUZZER LOGIC
+  if (buttonState == LOW) {  // button pressed
+    noTone(buzzerPin);       // Stop the buzzer
   }
 
   delay(100);  // Add a short delay for stability
