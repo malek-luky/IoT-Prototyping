@@ -106,10 +106,8 @@ void initialize_radio()
   Serial.println("Trying to join TTN");
   bool join_result = false;
 
-  /*
-   * OTAA: initOTAA(String AppEUI, String AppKey);
-   * If you are using OTAA, paste the example code from the TTN console here:
-   */
+
+  //OTAA connection credentials
   const char *appEui = "6081F924D81FE16F";
   const char *appKey = "CF35D5BA3C622A5FD18770AB4215B372";
   
