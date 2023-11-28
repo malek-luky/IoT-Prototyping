@@ -134,13 +134,11 @@ void loop()
     float DHT_tempTX = DHT.temperature;  //reading temperature from DHT11 sensor
     float DHT_humTX = DHT.humidity;      //reading humidity from DHT11 sensor
     
-    uint8_t TX_buffer[] = {fsrReading, DHT_tempTX, DHT_humTX};   
-    myLora.txBytes(TX_buffer, sizeof(TX_buffer));              //tx of gathered data via LoRa
+    uint8_t TX_buffer[] = {fsrReading, DHT_tempTX, DHT_humTX}; //creating a byte array of registered sensors data  
+    myLora.txBytes(TX_buffer, sizeof(TX_buffer));              //tx of the byte array via LoRa
     
     led_off();
-    delay(2000);
-
-    
+    delay(30000);  //delay due to duty cycle restriction 868MHz EU    
 }
 
 void led_on()
