@@ -37,7 +37,6 @@
  */
 #include <rn2xx3.h>
 #include <SoftwareSerial.h>
-#include <SPI.h>
 #include <stdio.h>
 #include <dht.h>
 
