@@ -36,7 +36,6 @@
  */
 #include <rn2xx3.h>
 #include <SoftwareSerial.h>
-#include "base64.hpp"
 
 const int buzzer = A1;
 const int button = 8;
