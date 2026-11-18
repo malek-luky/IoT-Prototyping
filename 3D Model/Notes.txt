@@ -7,8 +7,11 @@ X=66.75/65
 X=102.7x bigger
 
 v4
-X=65.8/65 (two lines each side)
-X=101.231x bigger
+X=71.8.71 (two lines each side)
+X=101.13x bigger
+
+Y =97.8/97
+Y= 100.83x
 
 
 DO IT SO THAT LAYER HEIGHT IS DIVADABLE
